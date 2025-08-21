@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Analysis Error",
+  "type": "object",
+  "properties": {
+    "block_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "error_type": {
+      "type": "string",
+      "enum": ["Network", "RateLimit", "InvalidJSON", "IOError"]
+    },
+    "error_detail": { "type": "string" },
+    "response_text": { "type": ["string", "null"] },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "block_id",
+    "task_id",
+    "error_type",
+    "error_detail",
+    "timestamp"
+  ],
+  "additionalProperties": false
+}

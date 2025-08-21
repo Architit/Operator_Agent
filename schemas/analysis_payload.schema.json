@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Analysis Payload",
+  "type": "object",
+  "properties": {
+    "summary": { "type": "string" },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 12
+    },
+    "class": {
+      "type": "string",
+      "enum": ["gold", "useful", "rework", "trash"]
+    },
+    "signals": {
+      "type": "object",
+      "properties": {
+        "people": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "projects": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dates": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["people", "projects", "dates"],
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "quotes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["summary", "keywords", "class", "signals", "actions", "risks", "quotes"],
+  "additionalProperties": false
+}

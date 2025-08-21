@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Queue Entry",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "block_id": { "type": "string" },
+    "block_path": { "type": "string" },
+    "lng": { "type": "string" },
+    "prompt_template": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "in_progress", "done", "error"]
+    },
+    "priority": { "type": "integer" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "result_path": { "type": ["string", "null"] },
+    "error_path": { "type": ["string", "null"] },
+    "error_msg": { "type": ["string", "null"] }
+  },
+  "required": [
+    "id",
+    "block_id",
+    "block_path",
+    "lng",
+    "prompt_template",
+    "status",
+    "priority",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

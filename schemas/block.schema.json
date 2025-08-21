@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Archive Data Block",
+  "type": "object",
+  "required": [
+    "block_id",
+    "parent_sha256",
+    "src_file",
+    "seq",
+    "total_seqs",
+    "encoding",
+    "lng",
+    "status",
+    "size_bytes",
+    "hash_sha256",
+    "tags",
+    "text"
+  ],
+  "properties": {
+    "block_id": { "type": "string" },
+    "parent_sha256": { "type": "string" },
+    "src_file": { "type": "string" },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "total_seqs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "encoding": { "type": "string" },
+    "lng": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "damaged", "binary"]
+    },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "hash_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 20000
+    }
+  },
+  "additionalProperties": false
+}
