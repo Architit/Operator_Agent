@@ -1,0 +1,3 @@
+[submodule "agents/test-agent"]
+	path = agents/test-agent
+	url = https://github.com/Architit/LAM_Test_Agent.git
