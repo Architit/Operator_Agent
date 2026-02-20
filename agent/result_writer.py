@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -43,6 +44,20 @@ _ANALYSIS_RESULT_SCHEMA = _load_schema("analysis_result.schema.json")
 
 # Determine the schemas directory URI for resolving references
 _SCHEMAS_DIR = (Path(__file__).resolve().parent.parent / "schemas").absolute()
+
+
+def _validate_rfc3339(value: str, field_name: str) -> None:
+    candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise jsonschema.ValidationError(
+            f"{field_name} must be a valid date-time"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise jsonschema.ValidationError(
+            f"{field_name} must include timezone information"
+        )
 
 
 
@@ -75,7 +90,11 @@ def write_result(
         OSError: If an I/O error occurs while writing the file.
     """
     # Validate the analysis payload
-    jsonschema.validate(instance=analysis_obj, schema=_ANALYSIS_PAYLOAD_SCHEMA)
+    jsonschema.validate(
+        instance=analysis_obj,
+        schema=_ANALYSIS_PAYLOAD_SCHEMA,
+    )
+    _validate_rfc3339(completed_at_iso, "completed_at")
     # Construct the wrapper result
     result: Dict[str, Any] = {
         "block_id": block_id,
@@ -94,7 +113,11 @@ def write_result(
             "analysis_result.schema.json": _ANALYSIS_RESULT_SCHEMA,
         },
     )
-    jsonschema.validate(instance=result, schema=_ANALYSIS_RESULT_SCHEMA, resolver=resolver)
+    jsonschema.validate(
+        instance=result,
+        schema=_ANALYSIS_RESULT_SCHEMA,
+        resolver=resolver,
+    )
     # Determine output path
     base_path = Path(base_dir)
     out_path = base_path / "Archive" / "AnalysisResults" / f"{block_id}.json"

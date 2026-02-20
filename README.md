@@ -230,3 +230,18 @@ log.debug("Detailed debugging information…")
 ```
 
 You can also adjust the logging level at runtime using `agent.logger.set_level('DEBUG')`.  Subsequent messages will obey the new level.
+
+## Testing
+
+OperatorAgent now provides a deterministic local test entrypoint:
+
+```bash
+scripts/test_entrypoint.sh --all
+```
+
+Supported modes:
+
+- `--all` run full suite
+- `--governance` run governance guards
+- `--core` run queue/block/writer/logger checks
+- `--ci` fail-fast CI mode

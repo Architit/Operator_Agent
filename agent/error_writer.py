@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -32,6 +33,20 @@ def _load_schema() -> Dict[str, Any]:
 
 
 _ERROR_SCHEMA: Dict[str, Any] = _load_schema()
+
+
+def _validate_rfc3339(value: str, field_name: str) -> None:
+    candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise jsonschema.ValidationError(
+            f"{field_name} must be a valid date-time"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise jsonschema.ValidationError(
+            f"{field_name} must include timezone information"
+        )
 
 
 def write_error(
@@ -72,7 +87,11 @@ def write_error(
         "timestamp": timestamp_iso,
     }
     # Validate error object
-    jsonschema.validate(instance=error_obj, schema=_ERROR_SCHEMA)
+    _validate_rfc3339(timestamp_iso, "timestamp")
+    jsonschema.validate(
+        instance=error_obj,
+        schema=_ERROR_SCHEMA,
+    )
     # Determine directory and base filename
     base_path = Path(base_dir)
     errors_dir = base_path / "Archive" / "AnalysisErrors"

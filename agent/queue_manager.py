@@ -14,11 +14,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-import jsonschema
+try:
+    import jsonschema
+except ModuleNotFoundError:  # pragma: no cover - depends on environment setup
+    jsonschema = None
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,31 @@ def _load_schema() -> Dict[str, Any]:
 
 # Load the schema once at module import
 _QUEUE_SCHEMA: Dict[str, Any] = _load_schema()
+
+
+def _validation_error(message: str) -> Exception:
+    if jsonschema is not None:
+        return jsonschema.ValidationError(message)
+    return ValueError(message)
+
+
+def _validate_rfc3339(value: Optional[str], field_name: str) -> None:
+    """Validate RFC3339-like timestamp with timezone requirement."""
+    if value is None:
+        return
+    if not isinstance(value, str):
+        raise _validation_error(f"{field_name} must be a string or null")
+    candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise _validation_error(
+            f"{field_name} must be a valid date-time"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise _validation_error(
+            f"{field_name} must include timezone information"
+        )
 
 
 def load_queue(path: str) -> List[Dict[str, Any]]:
@@ -55,6 +83,7 @@ def load_queue(path: str) -> List[Dict[str, Any]]:
     """
     items: List[Dict[str, Any]] = []
     lines_processed = 0
+    warned_missing_jsonschema = False
     with open(path, "r", encoding="utf-8") as f:
         for idx, line in enumerate(f, start=1):
             line = line.rstrip("\n\r")
@@ -67,11 +96,48 @@ def load_queue(path: str) -> List[Dict[str, Any]]:
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON at line {idx}: {e}")
                 continue
-            try:
-                jsonschema.validate(instance=entry, schema=_QUEUE_SCHEMA)
-            except jsonschema.ValidationError as e:
-                logger.error(f"Invalid queue entry at line {idx}: {e.message}")
-                continue
+            if jsonschema is not None:
+                try:
+                    jsonschema.validate(
+                        instance=entry,
+                        schema=_QUEUE_SCHEMA,
+                    )
+                    _validate_rfc3339(entry.get("created_at"), "created_at")
+                    _validate_rfc3339(entry.get("completed_at"), "completed_at")
+                except jsonschema.ValidationError as e:
+                    logger.error(f"Invalid queue entry at line {idx}: {e.message}")
+                    continue
+            else:
+                try:
+                    if not isinstance(entry, dict):
+                        raise ValueError("expected object")
+                    required = {
+                        "id",
+                        "block_id",
+                        "block_path",
+                        "lng",
+                        "prompt_template",
+                        "status",
+                        "priority",
+                        "created_at",
+                    }
+                    missing = sorted(required - set(entry.keys()))
+                    if missing:
+                        raise ValueError(f"missing required fields: {', '.join(missing)}")
+                    if entry.get("status") not in {"pending", "in_progress", "done", "error"}:
+                        raise ValueError("status must be one of pending|in_progress|done|error")
+                    if not isinstance(entry.get("priority"), int):
+                        raise ValueError("priority must be integer")
+                    _validate_rfc3339(entry.get("created_at"), "created_at")
+                    _validate_rfc3339(entry.get("completed_at"), "completed_at")
+                except Exception as e:
+                    logger.error(f"Invalid queue entry at line {idx}: {e}")
+                    continue
+                if not warned_missing_jsonschema:
+                    logger.warning(
+                        "jsonschema unavailable; queue entries loaded with reduced built-in validation"
+                    )
+                    warned_missing_jsonschema = True
             # at this point entry is a valid dict per schema
             items.append(entry)
     skipped = lines_processed - len(items)
@@ -128,10 +194,24 @@ def iter_pending(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     pending.sort(
         key=lambda task: (
             -task.get("priority", 0),
-            _parse_datetime(task.get("created_at"))
+            _created_at_sort_key(task.get("created_at")),
         )
     )
     return pending
+
+
+def _created_at_sort_key(value: Optional[str]) -> tuple[int, Any]:
+    """Build a stable sort key for created_at regardless of parse quality."""
+    parsed = _parse_datetime(value)
+    if isinstance(parsed, datetime):
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        else:
+            parsed = parsed.astimezone(timezone.utc)
+        return (0, parsed.timestamp())
+    if parsed is None:
+        return (2, "")
+    return (1, str(parsed))
 
 
 def mark_in_progress(items: List[Dict[str, Any]], task_id: str) -> None:

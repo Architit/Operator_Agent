@@ -42,13 +42,16 @@ def _initialize_handler() -> logging.Handler:
     logs_dir = project_root / "Archive" / "Logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = logs_dir / "operator.log"
-    # Create rotating file handler
-    handler = logging.handlers.RotatingFileHandler(
-        log_path,
-        maxBytes=5_242_880,
-        backupCount=5,
-        encoding="utf-8"
-    )
+    # Create rotating file handler with stream fallback for read-only environments
+    try:
+        handler = logging.handlers.RotatingFileHandler(
+            log_path,
+            maxBytes=5_242_880,
+            backupCount=5,
+            encoding="utf-8"
+        )
+    except OSError:
+        handler = logging.StreamHandler()
     # Formatter: ISO8601 UTC with 'Z' suffix and level in square brackets
     formatter = logging.Formatter(
         fmt="%(asctime)s [%(levelname)s] %(message)s",
