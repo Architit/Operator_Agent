@@ -1,13 +1,19 @@
 import json
+import hashlib
 from pathlib import Path
 
 from agent.queue_manager import (
+    ERROR_CODE_INTEGRITY_MISMATCH,
+    ERROR_CODE_PRECONDITION_FAILED,
+    TaskSpecEnvelopeError,
     iter_pending,
     load_queue,
     mark_done,
     mark_error,
     mark_in_progress,
     save_queue_atomic,
+    validate_task_spec_envelope,
+    verify_patch_integrity,
 )
 
 
@@ -108,3 +114,45 @@ def test_load_queue_skips_non_object_when_jsonschema_missing(tmp_path, monkeypat
     monkeypatch.setattr(qm, "jsonschema", None)
     loaded = qm.load_queue(str(q_path))
     assert loaded == []
+
+
+def _task_spec_v11():
+    return {
+        "spec_version": "1.1",
+        "task_id": "phaseA_t005_operator_taskspec_envelope",
+        "goal": "Validate operator task envelope deterministically",
+        "constraints": {"derivation_only": True},
+        "artifacts": {
+            "patch_path": "devkit/patches/PHASEA_T005_OPERATOR_TASKSPEC_ENVELOPE.patch",
+            "patch_sha256": "a" * 64,
+        },
+        "preconditions": [{"type": "file_exists", "path": "agent/queue_manager.py"}],
+        "limits": {"timeout_ms": 30000, "max_output_tokens": 2048},
+    }
+
+
+def test_validate_task_spec_envelope_v11_ok():
+    normalized = validate_task_spec_envelope(_task_spec_v11())
+    assert normalized["spec_version"] == "1.1"
+    assert normalized["task_id"] == "phaseA_t005_operator_taskspec_envelope"
+    assert normalized["patch_sha256"] == "a" * 64
+
+
+def test_validate_task_spec_envelope_fail_fast_precondition():
+    spec = _task_spec_v11()
+    spec["preconditions"] = []
+    try:
+        validate_task_spec_envelope(spec)
+        assert False, "expected TaskSpecEnvelopeError"
+    except TaskSpecEnvelopeError as exc:
+        assert exc.error_code == ERROR_CODE_PRECONDITION_FAILED
+
+
+def test_verify_patch_integrity_mismatch_error_code():
+    payload = b"hello-patch"
+    bad_hash = hashlib.sha256(b"other").hexdigest()
+    try:
+        verify_patch_integrity(bad_hash, payload)
+        assert False, "expected TaskSpecEnvelopeError"
+    except TaskSpecEnvelopeError as exc:
+        assert exc.error_code == ERROR_CODE_INTEGRITY_MISMATCH

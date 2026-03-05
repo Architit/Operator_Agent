@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+from hashlib import sha256
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -24,6 +26,145 @@ except ModuleNotFoundError:  # pragma: no cover - depends on environment setup
     jsonschema = None
 
 logger = logging.getLogger(__name__)
+
+
+ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE = "INVALID_TASK_SPEC_ENVELOPE"
+ERROR_CODE_PRECONDITION_FAILED = "PRECONDITION_FAILED"
+ERROR_CODE_INTEGRITY_MISMATCH = "INTEGRITY_MISMATCH"
+_SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
+
+
+class TaskSpecEnvelopeError(ValueError):
+    """Fail-fast error for Task Spec envelope validation/integrity checks."""
+
+    def __init__(self, error_code: str, message: str):
+        super().__init__(message)
+        self.error_code = error_code
+
+
+def validate_task_spec_envelope(spec: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate Task Spec v1.1 envelope with fail-fast error codes.
+
+    Returns a normalized view for downstream ingestion.
+    """
+    if not isinstance(spec, dict):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "Task Spec envelope must be an object",
+        )
+
+    required_root = ("spec_version", "task_id", "goal", "constraints", "artifacts", "preconditions", "limits")
+    missing = [k for k in required_root if k not in spec]
+    if missing:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            f"Missing required fields: {', '.join(missing)}",
+        )
+
+    if str(spec.get("spec_version")) != "1.1":
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "spec_version must be 1.1",
+        )
+
+    task_id = spec.get("task_id")
+    if not isinstance(task_id, str) or not task_id.strip():
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "task_id must be a non-empty string",
+        )
+
+    goal = spec.get("goal")
+    if not isinstance(goal, str) or not goal.strip() or ("\n" in goal or "\r" in goal):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "goal must be a non-empty single line string",
+        )
+
+    constraints = spec.get("constraints")
+    if not isinstance(constraints, dict) or constraints.get("derivation_only") is not True:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "constraints.derivation_only must be true",
+        )
+
+    artifacts = spec.get("artifacts")
+    if not isinstance(artifacts, dict):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "artifacts must be an object",
+        )
+    patch_path = artifacts.get("patch_path")
+    patch_sha256 = artifacts.get("patch_sha256")
+    if not isinstance(patch_path, str) or not patch_path.strip():
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "artifacts.patch_path must be a non-empty string",
+        )
+    if not isinstance(patch_sha256, str) or not _SHA256_RE.match(patch_sha256.lower()):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "artifacts.patch_sha256 must be 64 hex chars",
+        )
+
+    preconditions = spec.get("preconditions")
+    if not isinstance(preconditions, list) or len(preconditions) == 0:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_PRECONDITION_FAILED,
+            "preconditions must be a non-empty list",
+        )
+
+    limits = spec.get("limits")
+    if not isinstance(limits, dict):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "limits must be an object",
+        )
+    timeout_ms = limits.get("timeout_ms")
+    max_output_tokens = limits.get("max_output_tokens")
+    if not isinstance(timeout_ms, int) or timeout_ms <= 0:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "limits.timeout_ms must be a positive integer",
+        )
+    if not isinstance(max_output_tokens, int) or max_output_tokens <= 0:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "limits.max_output_tokens must be a positive integer",
+        )
+
+    return {
+        "spec_version": "1.1",
+        "task_id": task_id.strip(),
+        "goal": goal.strip(),
+        "patch_path": patch_path.strip(),
+        "patch_sha256": patch_sha256.lower(),
+        "preconditions": preconditions,
+        "timeout_ms": timeout_ms,
+        "max_output_tokens": max_output_tokens,
+    }
+
+
+def verify_patch_integrity(expected_sha256: str, payload: bytes) -> str:
+    """Verify patch payload hash with fail-fast integrity mismatch error."""
+    if not isinstance(payload, (bytes, bytearray)):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "payload must be bytes",
+        )
+    norm_expected = str(expected_sha256).lower()
+    if not _SHA256_RE.match(norm_expected):
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INVALID_TASK_SPEC_ENVELOPE,
+            "expected_sha256 must be 64 hex chars",
+        )
+    actual = sha256(payload).hexdigest()
+    if actual != norm_expected:
+        raise TaskSpecEnvelopeError(
+            ERROR_CODE_INTEGRITY_MISMATCH,
+            f"Integrity mismatch: expected={norm_expected} actual={actual}",
+        )
+    return actual
 
 
 def _load_schema() -> Dict[str, Any]:
