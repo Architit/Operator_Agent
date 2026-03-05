@@ -63,6 +63,9 @@ case "${1:---all}" in
   --flow-control)
     "$PYTEST_BIN" -q tests/test_phase_e_flow_control_operator_contract.py tests/test_phase_b_patch_runtime_contract.py
     ;;
+  --p0-safety)
+    "$PYTEST_BIN" -q tests/test_phase_f_p0_safety_operator_contract.py tests/test_phase_b_patch_runtime_contract.py
+    ;;
   --core)
     "$PYTEST_BIN" -q tests -k "queue_manager or core_io or logger"
     ;;
@@ -70,7 +73,7 @@ case "${1:---all}" in
     "$PYTEST_BIN" -q tests --maxfail=1
     ;;
   *)
-    echo "usage: $0 [--all|--unit-only|--integration|--governance|--patch-runtime|--memory|--transport|--flow-control|--core|--ci]"
+    echo "usage: $0 [--all|--unit-only|--integration|--governance|--patch-runtime|--memory|--transport|--flow-control|--p0-safety|--core|--ci]"
     exit 2
     ;;
 esac
