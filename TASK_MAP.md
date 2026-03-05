@@ -1,6 +1,6 @@
 # TASK_MAP
 
-last_updated_utc: 2026-03-05T16:20:00Z
+last_updated_utc: 2026-03-05T16:58:00Z
 owner_repo: Operator_Agent
 scope: master-plan aligned owner tasks (Phase A/B/C/D)
 
@@ -14,3 +14,4 @@ scope: master-plan aligned owner tasks (Phase A/B/C/D)
 | phaseB_closure | Phase B owner closure evidence | COMPLETE | OPR-01 | `gov/report/phaseB_operator_owner_closure_2026-03-05.md` |
 | phaseC_C3 | Phase C owner memory wave execution | COMPLETE | OPR-01 | `contract/PHASE_C_MEMORY_OPERATOR_CONTRACT_V1.md`, `tests/test_phase_c_memory_operator_contract.py`, `gov/report/phaseC_operator_wave1_execution_2026-03-05.md` |
 | phaseD_D2 | Phase D owner transport wave execution | COMPLETE | OPR-01 | `contract/PHASE_D_TRANSPORT_OPERATOR_CONTRACT_V1.md`, `tests/test_phase_d_transport_operator_contract.py`, `gov/report/phaseD_operator_transport_wave1_execution_2026-03-05.md` |
+| phaseE_E2 | Phase E owner flow-control wave execution | COMPLETE | OPR-01 | `contract/PHASE_E_FLOW_CONTROL_OPERATOR_CONTRACT_V1.md`, `tests/test_phase_e_flow_control_operator_contract.py`, `gov/report/phaseE_operator_flow_control_wave1_execution_2026-03-05.md` |
