@@ -10,3 +10,4 @@ def test_test_entrypoint_modes_declared():
     assert "--integration" in text
     assert "--patch-runtime" in text
     assert "--ci" in text
+    assert "--research-gate" in text
