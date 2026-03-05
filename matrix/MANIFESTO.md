@@ -1,0 +1,1 @@
+/home/architit/work/Trianiuma/RADRILONIUMA_MANIFESTO.md
