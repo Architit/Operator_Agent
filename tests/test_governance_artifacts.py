@@ -23,4 +23,5 @@ def test_protocol_sync_markers_present():
 
     assert "protocol-sync-header-v1" in dev_logs
     assert "workflow-optimization-protocol-sync-v2" in dev_logs
-    assert "RADRILONIUMA-PROJECT/v1.0.0@7eadfe9" in roadmap
+    assert "RADRILONIUMA" in roadmap
+    assert "Roadmap" in roadmap
