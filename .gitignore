@@ -1,3 +1,12 @@
 .venv/
 __pycache__/
 tests/__pycache__/
+
+# Artifact reconciliation
+.gemini/
+chronolog/STATE.md
+data/
+**/__pycache__/
+*.pyc
+desktop.ini
+Desktop.ini
