@@ -51,6 +51,9 @@ case "${1:---all}" in
   --governance)
     "$PYTEST_BIN" -q tests -k governance
     ;;
+  --patch-runtime)
+    "$PYTEST_BIN" -q tests/test_phase_b_patch_runtime_contract.py
+    ;;
   --core)
     "$PYTEST_BIN" -q tests -k "queue_manager or core_io or logger"
     ;;
@@ -58,7 +61,7 @@ case "${1:---all}" in
     "$PYTEST_BIN" -q tests --maxfail=1
     ;;
   *)
-    echo "usage: $0 [--all|--unit-only|--integration|--governance|--core|--ci]"
+    echo "usage: $0 [--all|--unit-only|--integration|--governance|--patch-runtime|--core|--ci]"
     exit 2
     ;;
 esac
